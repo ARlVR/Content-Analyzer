@@ -1,3 +1,4 @@
+# Importando as bibliotecas necessárias
 import streamlit as st
 from st_clickable_images import clickable_images
 import pandas as pd
@@ -6,14 +7,20 @@ import os
 import requests
 from time import sleep
 
+
+# Definindo URLs para upload e transcrição
 upload_endpoint = "https://api.assemblyai.com/v2/upload"
 transcript_endpoint = "https://api.assemblyai.com/v2/transcript"
 
+
+# Configurando os cabeçalhos de autorização
 headers = {
     "authorization": st.secrets["auth_key"],
     "content-type": "application/json"
 }
 
+
+# Função para salvar o áudio de um vídeo do YouTube
 @st.experimental_memo
 def save_audio(url):
     yt = YouTube(url)
@@ -26,6 +33,8 @@ def save_audio(url):
     print(file_name)
     return yt.title, file_name, yt.thumbnail_url
 
+
+# Função para fazer o upload do arquivo de áudio para o AssemblyAI
 @st.experimental_memo
 def upload_to_AssemblyAI(save_location):
     CHUNK_SIZE = 5242880
@@ -51,11 +60,13 @@ def upload_to_AssemblyAI(save_location):
 
     return audio_url
 
+
+# Função para iniciar a análise de áudio na AssemblyAI
 @st.experimental_memo
 def start_analysis(audio_url):
     print(audio_url)
 
-    ## Start transcription job of audio file
+    ## Inicia o trabalho de transcrição do arquivo de áudio
     data = {
         'audio_url': audio_url,
         'iab_categories': True,
@@ -64,6 +75,7 @@ def start_analysis(audio_url):
         "summary_type": "bullets"
     }
 
+    # Envia os dados para o AssemblyAI
     transcript_response = requests.post(transcript_endpoint, json=data, headers=headers)
     print(transcript_response)
 
@@ -73,11 +85,14 @@ def start_analysis(audio_url):
     print("Transcribing at", polling_endpoint)
     return polling_endpoint
 
+
+# Função para obter os resultados da análise de áudio
 @st.experimental_memo
 def get_analysis_results(polling_endpoint):
 
     status = 'submitted'
 
+    # Continue verificando o status até que esteja completo
     while True:
         print(status)
         polling_response = requests.get(polling_endpoint, headers=headers)
@@ -100,6 +115,8 @@ def get_analysis_results(polling_endpoint):
             return False
             break
 
+
+# # Título e descrição da aplicação Streamlit
 st.title("YouTube Content Analyzer")
 st.markdown("With this app you can audit a Youtube channel to see if you'd like to sponsor them. All you have to do is to pass a list of links to the videos of this channel and you will get a list of thumbnails. Once you select a video by clicking its thumbnail, you can view:")
 st.markdown("1. a summary of the video,") 
@@ -107,6 +124,7 @@ st.markdown("2. the topics that are discussed in the video,")
 st.markdown("3. whether there are any sensitive topics discussed in the video.")
 st.markdown("Make sure your links are in the format: https://www.youtube.com/watch?v=HfNnuQOHAaw and not https://youtu.be/HfNnuQOHAaw")
 
+# Opção para utilizar um arquivo de links padrão
 default_bool = st.checkbox("Use a default file")
 
 if default_bool:
@@ -115,14 +133,17 @@ else:
     file = st.file_uploader("Upload a file that includes the links (.txt)")
 
 if file is not None:
+    # Leitura do arquivo para um DataFrame
     dataframe = pd.read_csv(file, header=None)
     dataframe.columns = ['urls']
     urls_list = dataframe['urls'].tolist()
 
+    # Listas para armazenar as informações dos vídeos
     titles = []
     locations = []
     thumbnails = []
 
+    # Para cada link no arquivo, baixe o áudio e obtenha informações sobre o vídeo
     for video_url in urls_list:
         # download audio
         video_title, save_location, video_thumbnail = save_audio(video_url)
@@ -130,6 +151,7 @@ if file is not None:
         locations.append(save_location)
         thumbnails.append(video_thumbnail)
 
+    # Crie uma interface de usuário com imagens clicáveis dos vídeos
     selected_video = clickable_images(thumbnails,
     titles = titles,
     div_style={"height": "400px", "display": "flex", "justify-content": "center", "flex-wrap": "wrap", "overflow-y":"auto"},
@@ -138,6 +160,7 @@ if file is not None:
 
     st.markdown(f"Thumbnail #{selected_video} clicked" if selected_video > -1 else "No image clicked")
 
+    # Se um vídeo for selecionado, comece a análise do áudio
     if selected_video > -1:
         video_url = urls_list[selected_video]
         video_title = titles[selected_video]
@@ -155,6 +178,7 @@ if file is not None:
         # receive the results
         results = get_analysis_results(polling_endpoint)
 
+        # Mostre os resultados na interface do usuário
         summary = results.json()['summary']
         topics = results.json()['iab_categories_result']['summary']
         sensitive_topics = results.json()['content_safety_labels']['summary']
