@@ -6,22 +6,23 @@ from pytube import YouTube
 import os
 import requests
 from time import sleep
+from dotenv import load_dotenv
 
+load_dotenv()
 
 # Definindo URLs para upload e transcrição
 upload_endpoint = "https://api.assemblyai.com/v2/upload"
 transcript_endpoint = "https://api.assemblyai.com/v2/transcript"
 
-
 # Configurando os cabeçalhos de autorização
 headers = {
-    "authorization": st.secrets["auth_key"],
+    "authorization": os.getenv("AUTH_KEY"),
     "content-type": "application/json"
 }
 
 
 # Função para salvar o áudio de um vídeo do YouTube
-@st.experimental_memo
+@st.cache_data
 def save_audio(url):
     yt = YouTube(url)
     video = yt.streams.filter(only_audio=True).first()
@@ -35,7 +36,7 @@ def save_audio(url):
 
 
 # Função para fazer o upload do arquivo de áudio para o AssemblyAI
-@st.experimental_memo
+@st.cache_data
 def upload_to_AssemblyAI(save_location):
     CHUNK_SIZE = 5242880
     print(save_location)
@@ -62,7 +63,7 @@ def upload_to_AssemblyAI(save_location):
 
 
 # Função para iniciar a análise de áudio na AssemblyAI
-@st.experimental_memo
+@st.cache_data
 def start_analysis(audio_url):
     print(audio_url)
 
@@ -87,7 +88,7 @@ def start_analysis(audio_url):
 
 
 # Função para obter os resultados da análise de áudio
-@st.experimental_memo
+@st.cache_data
 def get_analysis_results(polling_endpoint):
 
     status = 'submitted'
